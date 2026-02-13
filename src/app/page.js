@@ -359,7 +359,7 @@ function GridHeader({cols}){return <div style={{display:"grid",gridTemplateColum
 export default function App(){
   const[user,setUser]=useState(null);const[un,setUn]=useState("");const[pw,setPw]=useState("");const[le,setLe]=useState("");
   const[pg,setPg]=useState("dashboard");const[members,setMembers]=useState(SAMPLE_MEMBERS);const[speakers,setSpeakers]=useState(INIT_SPEAKERS);
-  const[search,setSearch]=useState("");const[filter,setFilter]=useState("all");const[mPageSize,setMPageSize]=useState(20);const[mPage,setMPage]=useState(0);
+  const[search,setSearch]=useState("");const[filter,setFilter]=useState("all");const[mViewSize,setMViewSize]=useState(20);
   const[showMM,setShowMM]=useState(false);const[editM,setEditM]=useState(null);const[viewM,setViewM]=useState(null);
   const[showEM,setShowEM]=useState(false);const[emailPre,setEmailPre]=useState([]);
   const[showPM,setShowPM]=useState(false);const[showSM,setShowSM]=useState(false);const[editS,setEditS]=useState(null);
@@ -432,10 +432,11 @@ export default function App(){
             <div style={{display:"flex",gap:"8px"}}>{selMode?<><div onClick={()=>{if(sel.length>0){setEmailPre(sel);setShowEM(true);setSelMode(false);setSel([])}}} style={{...BTN(sel.length>0?"linear-gradient(135deg,#3b82f6,#6366f1)":"#334155"),display:"flex",alignItems:"center",gap:"6px",opacity:sel.length>0?1:0.5}}><Icons.Mail/>{"Email "+sel.length+" Selected"}</div><div onClick={()=>{setSelMode(false);setSel([])}} style={BTN("#334155","#cbd5e1")}>Cancel</div></>:<><div onClick={()=>{setSelMode(true);setSel([])}} style={{...BTN("#334155","#cbd5e1"),display:"flex",alignItems:"center",gap:"6px"}}><Icons.List/>Select and Email</div><div onClick={()=>{setEditM(null);setShowMM(true)}} style={{...BTN("linear-gradient(135deg,#3b82f6,#6366f1)"),display:"flex",alignItems:"center",gap:"6px"}}><Icons.Plus/>Add Member</div></>}</div>
           </div>
           {selMode&&<div style={{background:"#1e40af20",border:"1px solid #3b82f640",borderRadius:"10px",padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}><span style={{color:"#93c5fd",fontSize:"13px"}}>Click rows to select. {sel.length} selected.</span><div style={{display:"flex",gap:"8px"}}><span onClick={()=>setSel(fm.map(m=>m.id))} style={{color:"#3b82f6",fontSize:"12px",cursor:"pointer"}}>Select All</span><span onClick={()=>setSel([])} style={{color:"#94a3b8",fontSize:"12px",cursor:"pointer"}}>Clear</span></div></div>}
-          <div style={{display:"flex",gap:"12px",marginBottom:"20px",flexWrap:"wrap"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"14px",top:"50%",transform:"translateY(-50%)",color:"#64748b"}}><Icons.Search/></div><input value={search} onChange={e=>{setSearch(e.target.value);setMPage(0)}} placeholder="Search..." style={{...IS,paddingLeft:"38px",background:"#1e293b"}}/></div>{["all","active","inactive","unpaid","overdue"].map(f=><div key={f} onClick={()=>{setFilter(f);setMPage(0)}} style={{padding:"10px 16px",border:"1px solid",borderRadius:"8px",fontSize:"13px",cursor:"pointer",fontWeight:"500",textTransform:"capitalize",background:filter===f?"#3b82f620":"#1e293b",borderColor:filter===f?"#3b82f6":"#334155",color:filter===f?"#93c5fd":"#94a3b8"}}>{f}</div>)}</div>
+          <div style={{display:"flex",gap:"12px",marginBottom:"20px",flexWrap:"wrap"}}><div style={{position:"relative",flex:1,minWidth:"200px"}}><div style={{position:"absolute",left:"14px",top:"50%",transform:"translateY(-50%)",color:"#64748b"}}><Icons.Search/></div><input value={search} onChange={e=>{setSearch(e.target.value)}} placeholder="Search..." style={{...IS,paddingLeft:"38px",background:"#1e293b"}}/></div>{["all","active","inactive","unpaid","overdue"].map(f=><div key={f} onClick={()=>{setFilter(f)}} style={{padding:"10px 16px",border:"1px solid",borderRadius:"8px",fontSize:"13px",cursor:"pointer",fontWeight:"500",textTransform:"capitalize",background:filter===f?"#3b82f620":"#1e293b",borderColor:filter===f?"#3b82f6":"#334155",color:filter===f?"#93c5fd":"#94a3b8"}}>{f}</div>)}</div>
           <div style={{background:"#1e293b",borderRadius:"12px",border:"1px solid #334155",overflow:"hidden"}}>
             <div style={{display:"grid",gridTemplateColumns:mCols,borderBottom:"1px solid #334155"}}>{selMode&&<div style={HS}/>}{["Name","Email","City","Status","Dues","Last Paid","Next Due",""].map(h=><div key={h} style={HS}>{h}</div>)}</div>
-            {fm.slice(mPage*mPageSize,(mPage+1)*mPageSize).map((m,i,arr)=>{const s=sel.includes(m.id);return<div key={m.id} onClick={()=>{if(selMode)tog(m.id)}} style={{display:"grid",gridTemplateColumns:mCols,borderBottom:i<arr.length-1?"1px solid #334155":"none",cursor:selMode?"pointer":"default",background:s?"#3b82f615":"transparent",alignItems:"center"}}>
+            <div style={{maxHeight:(mViewSize*44)+"px",overflowY:"auto"}}>
+            {fm.map((m,i)=>{const s=sel.includes(m.id);return<div key={m.id} onClick={()=>{if(selMode)tog(m.id)}} style={{display:"grid",gridTemplateColumns:mCols,borderBottom:i<fm.length-1?"1px solid #334155":"none",cursor:selMode?"pointer":"default",background:s?"#3b82f615":"transparent",alignItems:"center"}}>
               {selMode&&<div style={{padding:"12px",textAlign:"center"}}><input type="checkbox" checked={s} onChange={()=>tog(m.id)} style={{accentColor:"#3b82f6"}}/></div>}
               <div style={{padding:"12px 14px"}}><div onClick={e=>{if(!selMode){e.stopPropagation();setViewM(m)}}} style={{cursor:selMode?"default":"pointer"}}><div style={{color:"#f1f5f9",fontSize:"14px",fontWeight:"500"}}>{m.firstName} {m.lastName}</div>{m.notes&&<div style={{color:"#64748b",fontSize:"11px",marginTop:"2px"}}>{m.notes}</div>}</div></div>
               <div style={{padding:"12px 14px",color:"#94a3b8",fontSize:"13px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.email}</div>
@@ -451,16 +452,11 @@ export default function App(){
               </div>}</div>
             </div>})}
             {fm.length===0&&<div style={{padding:"40px",textAlign:"center",color:"#64748b"}}>No members found</div>}
+            </div>
           </div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"12px"}}>
-            <div style={{color:"#64748b",fontSize:"12px"}}>{"Showing "+(fm.length===0?0:mPage*mPageSize+1)+"-"+Math.min((mPage+1)*mPageSize,fm.length)+" of "+fm.length+" members"}</div>
-            <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:"6px"}}><span style={{color:"#64748b",fontSize:"12px"}}>Show:</span>{[10,20,50].map(n=><div key={n} onClick={()=>{setMPageSize(n);setMPage(0)}} style={{padding:"4px 10px",borderRadius:"6px",fontSize:"12px",cursor:"pointer",background:mPageSize===n?"#3b82f620":"#1e293b",border:"1px solid",borderColor:mPageSize===n?"#3b82f6":"#334155",color:mPageSize===n?"#93c5fd":"#94a3b8"}}>{n}</div>)}</div>
-              <div style={{display:"flex",gap:"4px"}}>
-                <div onClick={()=>setMPage(p=>Math.max(0,p-1))} style={{padding:"6px 12px",borderRadius:"6px",fontSize:"12px",cursor:mPage>0?"pointer":"default",background:"#1e293b",border:"1px solid #334155",color:mPage>0?"#cbd5e1":"#334155"}}>Prev</div>
-                <div onClick={()=>setMPage(p=>p<Math.ceil(fm.length/mPageSize)-1?p+1:p)} style={{padding:"6px 12px",borderRadius:"6px",fontSize:"12px",cursor:mPage<Math.ceil(fm.length/mPageSize)-1?"pointer":"default",background:"#1e293b",border:"1px solid #334155",color:mPage<Math.ceil(fm.length/mPageSize)-1?"#cbd5e1":"#334155"}}>Next</div>
-              </div>
-            </div>
+            <div style={{color:"#64748b",fontSize:"12px"}}>{fm.length+" members"}</div>
+            <div style={{display:"flex",alignItems:"center",gap:"6px"}}><span style={{color:"#64748b",fontSize:"12px"}}>Rows visible:</span>{[10,20,50].map(n=><div key={n} onClick={()=>setMViewSize(n)} style={{padding:"4px 10px",borderRadius:"6px",fontSize:"12px",cursor:"pointer",background:mViewSize===n?"#3b82f620":"#1e293b",border:"1px solid",borderColor:mViewSize===n?"#3b82f6":"#334155",color:mViewSize===n?"#93c5fd":"#94a3b8"}}>{n}</div>)}</div>
           </div>
           <div style={{marginTop:"4px",color:"#64748b",fontSize:"12px"}}>{"Dues: $"+DUES_AMOUNT+"/year, due on join anniversary date"}</div>
         </div>}
