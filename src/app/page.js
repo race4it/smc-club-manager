@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 const DUES_AMOUNT = 50;
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1exqw96PYtGnta0BC4bwGkumSIvZAkpMJQ5iI--ucuTY/edit?gid=1762403654#gid=1762403654";
@@ -23,6 +23,7 @@ const Icons = {
   List: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>,
   Ext: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
   Cal: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>,
+  Gear: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
 };
 
 const SAMPLE_MEMBERS = [
@@ -294,6 +295,20 @@ function DetailModal({member:m,onClose}){
   </Modal>);
 }
 
+function UserModal({user:u,onSave,onClose}){
+  const[f,setF]=useState(u?{name:u.name,username:u.username,password:""}:{name:"",username:"",password:""});
+  const up=(k,v)=>setF(p=>({...p,[k]:v}));
+  const[err,setErr]=useState("");
+  return(<Modal title={u?"Edit User":"Add User"} onClose={onClose} footer={<><div onClick={onClose} style={BTN("#334155","#cbd5e1")}>Cancel</div><div onClick={()=>{if(!f.name||!f.username){setErr("Name and username required");return}if(!u&&!f.password){setErr("Password required");return}setErr("");onSave({...f,id:u?.id})}} style={BTN("linear-gradient(135deg,#3b82f6,#6366f1)")}>{u?"Save":"Add User"}</div></>}>
+    <div style={{display:"flex",flexDirection:"column",gap:"16px"}}>
+      {err&&<div style={{background:"#7f1d1d33",border:"1px solid #991b1b",borderRadius:"8px",padding:"10px 14px",color:"#fca5a5",fontSize:"13px"}}>{err}</div>}
+      <div><label style={LS}>Name *</label><input style={IS} value={f.name} onChange={e=>up("name",e.target.value)}/></div>
+      <div><label style={LS}>Username *</label><input style={IS} value={f.username} onChange={e=>up("username",e.target.value)}/></div>
+      <div><label style={LS}>{u?"New Password (leave blank to keep)":"Password *"}</label><input style={IS} type="password" value={f.password} onChange={e=>up("password",e.target.value)}/></div>
+    </div>
+  </Modal>);
+}
+
 function SpeakerModal({speaker:sp,onSave,onClose}){
   const[f,setF]=useState(sp||{date:"",speaker:"",org:"",title:"",topic:"",recruitedBy:"",recruiterPhone:"",noMeeting:false,reason:""});
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -358,19 +373,29 @@ function GridHeader({cols}){return <div style={{display:"grid",gridTemplateColum
 
 export default function App(){
   const[user,setUser]=useState(null);const[un,setUn]=useState("");const[pw,setPw]=useState("");const[le,setLe]=useState("");
-  const[pg,setPg]=useState("dashboard");const[members,setMembers]=useState(SAMPLE_MEMBERS);const[speakers,setSpeakers]=useState(INIT_SPEAKERS);
+  const[pg,setPg]=useState("dashboard");const[members,setMembers]=useState([]);const[speakers,setSpeakers]=useState(INIT_SPEAKERS);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{
+    fetch("/api/members").then(r=>r.json()).then(data=>{
+      if(Array.isArray(data)&&data.length>0){setMembers(data);setLoading(false)}
+      else{fetch("/api/seed").then(r=>r.json()).then(()=>fetch("/api/members").then(r=>r.json()).then(d=>{if(Array.isArray(d))setMembers(d);setLoading(false)})).catch(()=>setLoading(false))}
+    }).catch(()=>setLoading(false));
+    fetch("/api/users").then(r=>r.json()).then(d=>{if(Array.isArray(d))setAppUsers(d)}).catch(()=>{});
+  },[]);
   const[search,setSearch]=useState("");const[filter,setFilter]=useState("all");const[mViewSize,setMViewSize]=useState(20);
   const[showMM,setShowMM]=useState(false);const[editM,setEditM]=useState(null);const[viewM,setViewM]=useState(null);
   const[showEM,setShowEM]=useState(false);const[emailPre,setEmailPre]=useState([]);
   const[showPM,setShowPM]=useState(false);const[showSM,setShowSM]=useState(false);const[editS,setEditS]=useState(null);
   const[confDel,setConfDel]=useState(null);const[confDelS,setConfDelS]=useState(null);
+  const[appUsers,setAppUsers]=useState([]);const[showUM,setShowUM]=useState(false);const[editU,setEditU]=useState(null);const[confDelU,setConfDelU]=useState(null);
   const[toast,setToast]=useState(null);const[selMode,setSelMode]=useState(false);const[sel,setSel]=useState([]);const[spFil,setSpFil]=useState("upcoming");
 
   const flash=useCallback(m=>{setToast(m);setTimeout(()=>setToast(null),3000)},[]);
-  const login=()=>{if(un.trim()&&pw.trim())setUser(un.trim());else setLe("Please enter username and password")};
+  const login=async()=>{if(!un.trim()||!pw.trim()){setLe("Please enter username and password");return}try{const r=await fetch("/api/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:un.trim(),password:pw.trim()})});const d=await r.json();if(r.ok){setUser(d.name);setLe("")}else{setLe(d.error||"Invalid credentials")}}catch(e){setLe("Login failed")}};
 
   const mwd=useMemo(()=>members.map(m=>({...m,_ds:getDuesStatus(m),_nd:getNextDue(m)})),[members]);
 
+  if(loading){return(<div style={{minHeight:"100vh",background:"#0f172a",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div style={{width:"36px",height:"36px",background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:"11px",fontWeight:"800",margin:"0 auto 16px"}}>SMC</div><div style={{color:"#94a3b8",fontSize:"14px"}}>Loading members...</div></div></div>)}
   if(!user){return(
     <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
       <div style={{width:"100%",maxWidth:"400px"}}>
@@ -380,7 +405,7 @@ export default function App(){
           <div style={{marginBottom:"16px"}}><label style={LS}>Username</label><input type="text" value={un} onChange={e=>{setUn(e.target.value);setLe("")}} onKeyDown={e=>{if(e.key==="Enter")login()}} placeholder="Enter username" style={IS}/></div>
           <div style={{marginBottom:"24px"}}><label style={LS}>Password</label><input type="password" value={pw} onChange={e=>{setPw(e.target.value);setLe("")}} onKeyDown={e=>{if(e.key==="Enter")login()}} placeholder="Enter password" style={IS}/></div>
           <div onClick={login} style={{width:"100%",padding:"12px",background:"linear-gradient(135deg,#3b82f6,#6366f1)",color:"white",borderRadius:"8px",fontSize:"14px",fontWeight:"600",cursor:"pointer",textAlign:"center",boxSizing:"border-box"}}>Sign In</div>
-          <p style={{textAlign:"center",color:"#64748b",fontSize:"12px",marginTop:"16px"}}>Demo: enter any username and password</p>
+          <p style={{textAlign:"center",color:"#64748b",fontSize:"12px",marginTop:"16px"}}>Default: admin / admin123</p>
         </div>
       </div>
     </div>);
@@ -388,10 +413,12 @@ export default function App(){
 
   const fm=mwd.filter(m=>{const ms=(m.firstName+" "+m.lastName+" "+m.email+" "+m.city).toLowerCase().includes(search.toLowerCase());const mf=filter==="all"||(filter==="active"&&m.status==="active")||(filter==="inactive"&&m.status==="inactive")||(filter==="unpaid"&&m._ds!=="paid")||(filter==="overdue"&&m._ds==="overdue");return ms&&mf});
   const ac=mwd.filter(m=>m.status==="active").length,pc=mwd.filter(m=>m._ds==="paid"&&m.status==="active").length,oc=mwd.filter(m=>m._ds==="overdue").length;
-  const saveM=m=>{setMembers(p=>{const e=p.find(x=>x.id===m.id);if(e)return p.map(x=>x.id===m.id?m:x);return[...p,m]});setShowMM(false);setEditM(null);flash(editM?"Member updated":"Member added")};
-  const delM=id=>{setMembers(p=>p.filter(m=>m.id!==id));setConfDel(null);flash("Member removed")};
+  const saveM=async(m)=>{const isEdit=members.find(x=>x.id===m.id);if(isEdit){await fetch("/api/members",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(m)});setMembers(p=>p.map(x=>x.id===m.id?m:x))}else{const r=await fetch("/api/members",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(m)});const d=await r.json();setMembers(p=>[...p,{...m,id:d.id}])}setShowMM(false);setEditM(null);flash(isEdit?"Member updated":"Member added")};
+  const delM=async(id)=>{await fetch("/api/members",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});setMembers(p=>p.filter(m=>m.id!==id));setConfDel(null);flash("Member removed")};
   const saveS=s=>{setSpeakers(p=>{const e=p.find(x=>x.id===s.id);if(e)return p.map(x=>x.id===s.id?s:x);return[...p,s].sort((a,b)=>a.date.localeCompare(b.date))});setShowSM(false);setEditS(null);flash(editS?"Speaker updated":"Speaker added")};
   const delS=id=>{setSpeakers(p=>p.filter(s=>s.id!==id));setConfDelS(null);flash("Speaker removed")};
+  const saveU=async(u)=>{const isEdit=appUsers.find(x=>x.id===u.id);if(isEdit){const r=await fetch("/api/users",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(u)});if(!r.ok){const d=await r.json();flash(d.error||"Error");return}setAppUsers(p=>p.map(x=>x.id===u.id?{...x,name:u.name,username:u.username}:x))}else{const r=await fetch("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(u)});const d=await r.json();if(!r.ok){flash(d.error||"Error");return}setAppUsers(p=>[...p,{id:d.id,name:u.name,username:u.username,createdAt:new Date().toISOString().split("T")[0]}])}setShowUM(false);setEditU(null);flash(isEdit?"User updated":"User added")};
+  const delU=async(id)=>{const r=await fetch("/api/users",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});if(!r.ok){const d=await r.json();flash(d.error||"Error");return}setAppUsers(p=>p.filter(u=>u.id!==id));setConfDelU(null);flash("User removed")};
   const tog=id=>setSel(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
 
   const today=new Date().toISOString().split("T")[0];
@@ -399,7 +426,7 @@ export default function App(){
   const nextSp=speakers.find(s=>s.date>=today&&!s.noMeeting&&s.speaker);
   const openSlots=speakers.filter(s=>s.date>=today&&!s.noMeeting&&!s.speaker).length;
 
-  const navItems=[{id:"dashboard",label:"Dashboard",icon:Icons.Home},{id:"members",label:"Members",icon:Icons.Users},{id:"speakers",label:"Speakers",icon:Icons.Mic},{id:"email",label:"Email",icon:Icons.Mail},{id:"payments",label:"Payments",icon:Icons.Dollar}];
+  const navItems=[{id:"dashboard",label:"Dashboard",icon:Icons.Home},{id:"members",label:"Members",icon:Icons.Users},{id:"speakers",label:"Speakers",icon:Icons.Mic},{id:"email",label:"Email",icon:Icons.Mail},{id:"payments",label:"Payments",icon:Icons.Dollar},{id:"users",label:"Users",icon:Icons.Gear}];
 
   const mCols = selMode ? "40px 2fr 2fr 1.2fr 80px 70px 80px 80px 90px" : "2fr 2fr 1.2fr 80px 70px 80px 80px 90px";
   const sCols = "90px 1.5fr 1.5fr 1.2fr 1.5fr 1.5fr 70px";
@@ -446,7 +473,7 @@ export default function App(){
               <div style={{padding:"12px 14px",color:"#94a3b8",fontSize:"12px"}}>{m.lastDuesPaid?fmtDate(m.lastDuesPaid):"--"}</div>
               <div style={{padding:"12px 14px",color:"#94a3b8",fontSize:"12px"}}>{fmtDate(m._nd)}</div>
               <div style={{padding:"12px 14px"}}>{!selMode&&<div style={{display:"flex",gap:"4px"}}>
-                {m._ds!=="paid"&&<div onClick={e=>{e.stopPropagation();setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:new Date().toISOString().split("T")[0]}:x));flash("Marked paid")}} style={{padding:"5px 8px",background:"#065f4633",border:"1px solid #065f46",borderRadius:"6px",color:"#34d399",cursor:"pointer",fontSize:"11px",fontWeight:"500"}}>Paid</div>}
+                {m._ds!=="paid"&&<div onClick={e=>{e.stopPropagation();const today=new Date().toISOString().split("T")[0];fetch("/api/members",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...m,lastDuesPaid:today})});setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:today}:x));flash("Marked paid")}} style={{padding:"5px 8px",background:"#065f4633",border:"1px solid #065f46",borderRadius:"6px",color:"#34d399",cursor:"pointer",fontSize:"11px",fontWeight:"500"}}>Paid</div>}
                 <div onClick={e=>{e.stopPropagation();setEditM(m);setShowMM(true)}} style={{padding:"5px 8px",background:"#334155",borderRadius:"6px",color:"#94a3b8",cursor:"pointer",display:"flex",alignItems:"center"}}><Icons.Edit/></div>
                 <div onClick={e=>{e.stopPropagation();setConfDel(m)}} style={{padding:"5px 8px",background:"#334155",borderRadius:"6px",color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center"}}><Icons.Trash/></div>
               </div>}</div>
@@ -512,10 +539,31 @@ export default function App(){
               <div style={{padding:"12px 16px"}}><DuesBadge status={m._ds}/></div>
               <div style={{padding:"12px 16px",color:"#94a3b8",fontSize:"12px"}}>{m.lastDuesPaid?fmtDate(m.lastDuesPaid):"Never"}</div>
               <div style={{padding:"12px 16px",color:"#94a3b8",fontSize:"12px"}}>{fmtDate(m._nd)}</div>
-              <div style={{padding:"12px 16px"}}>{m._ds!=="paid"?<div onClick={()=>{setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:new Date().toISOString().split("T")[0]}:x));flash("Marked paid")}} style={{padding:"6px 12px",background:"#065f4633",border:"1px solid #065f46",borderRadius:"6px",color:"#34d399",cursor:"pointer",fontSize:"12px",fontWeight:"500",display:"inline-block"}}>Mark Paid</div>:<div onClick={()=>{setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:""}:x));flash("Marked unpaid")}} style={{padding:"6px 12px",background:"#334155",borderRadius:"6px",color:"#94a3b8",cursor:"pointer",fontSize:"12px",display:"inline-block"}}>Mark Unpaid</div>}</div>
+              <div style={{padding:"12px 16px"}}>{m._ds!=="paid"?<div onClick={()=>{const today=new Date().toISOString().split("T")[0];fetch("/api/members",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...m,lastDuesPaid:today})});setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:today}:x));flash("Marked paid")}} style={{padding:"6px 12px",background:"#065f4633",border:"1px solid #065f46",borderRadius:"6px",color:"#34d399",cursor:"pointer",fontSize:"12px",fontWeight:"500",display:"inline-block"}}>Mark Paid</div>:<div onClick={()=>{fetch("/api/members",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...m,lastDuesPaid:""})});setMembers(p=>p.map(x=>x.id===m.id?{...x,lastDuesPaid:""}:x));flash("Marked unpaid")}} style={{padding:"6px 12px",background:"#334155",borderRadius:"6px",color:"#94a3b8",cursor:"pointer",fontSize:"12px",display:"inline-block"}}>Mark Unpaid</div>}</div>
             </div>)}
           </div>
           <div style={{background:"#1e293b",borderRadius:"12px",border:"1px solid #334155",padding:"24px",marginTop:"20px"}}><h3 style={{color:"#f1f5f9",fontSize:"15px",fontWeight:"600",margin:"0 0 12px"}}>Stripe Setup Info</h3><div style={{color:"#94a3b8",fontSize:"14px",lineHeight:"1.7"}}><p style={{margin:"0 0 8px"}}>Via <strong style={{color:"#cbd5e1"}}>Stripe</strong> (2.9% + $0.30/txn)</p><p style={{margin:"0 0 4px"}}>1. Create account at stripe.com</p><p style={{margin:"0 0 4px"}}>2. Get API keys</p><p style={{margin:0}}>3. Add secret key to env variables</p></div></div>
+        </div>}
+
+        {pg==="users"&&<div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"24px"}}>
+            <div><h1 style={{color:"#f1f5f9",fontSize:"24px",fontWeight:"700",margin:"0 0 4px"}}>User Management</h1><p style={{color:"#64748b",fontSize:"13px",margin:0}}>Manage login accounts</p></div>
+            <div onClick={()=>{setEditU(null);setShowUM(true)}} style={{...BTN("linear-gradient(135deg,#3b82f6,#6366f1)"),display:"flex",alignItems:"center",gap:"6px"}}><Icons.Plus/>Add User</div>
+          </div>
+          <div style={{background:"#1e293b",borderRadius:"12px",border:"1px solid #334155",overflow:"hidden"}}>
+            <div style={{display:"grid",gridTemplateColumns:"2fr 2fr 1fr 100px",borderBottom:"1px solid #334155"}}>{["Name","Username","Created",""].map(h=><div key={h} style={HS}>{h}</div>)}</div>
+            {appUsers.map((u,i)=><div key={u.id} style={{display:"grid",gridTemplateColumns:"2fr 2fr 1fr 100px",borderBottom:i<appUsers.length-1?"1px solid #334155":"none",alignItems:"center"}}>
+              <div style={{padding:"12px 16px",color:"#f1f5f9",fontSize:"14px",fontWeight:"500"}}>{u.name}</div>
+              <div style={{padding:"12px 16px",color:"#94a3b8",fontSize:"13px"}}>{u.username}</div>
+              <div style={{padding:"12px 16px",color:"#94a3b8",fontSize:"12px"}}>{u.createdAt?fmtDate(u.createdAt):""}</div>
+              <div style={{padding:"12px 16px"}}><div style={{display:"flex",gap:"4px"}}>
+                <div onClick={()=>{setEditU(u);setShowUM(true)}} style={{padding:"5px 8px",background:"#334155",borderRadius:"6px",color:"#94a3b8",cursor:"pointer",display:"flex",alignItems:"center"}}><Icons.Edit/></div>
+                <div onClick={()=>setConfDelU(u)} style={{padding:"5px 8px",background:"#334155",borderRadius:"6px",color:"#f87171",cursor:"pointer",display:"flex",alignItems:"center"}}><Icons.Trash/></div>
+              </div></div>
+            </div>)}
+            {appUsers.length===0&&<div style={{padding:"40px",textAlign:"center",color:"#64748b"}}>No users found</div>}
+          </div>
+          <div style={{marginTop:"12px",color:"#64748b",fontSize:"12px"}}>{appUsers.length+" user"+(appUsers.length!==1?"s":"")}</div>
         </div>}
       </div>
 
@@ -524,8 +572,10 @@ export default function App(){
       {showEM&&<EmailModal members={members} pre={emailPre} onClose={()=>setShowEM(false)} onSend={()=>flash("Emails sent")}/>}
       {showPM&&<PaymentModal members={members} onClose={()=>setShowPM(false)}/>}
       {showSM&&<SpeakerModal speaker={editS} onSave={saveS} onClose={()=>{setShowSM(false);setEditS(null)}}/>}
+      {showUM&&<UserModal user={editU} onSave={saveU} onClose={()=>{setShowUM(false);setEditU(null)}}/>}
       {confDel&&<Confirm title="Delete Member" msg={"Remove "+confDel.firstName+" "+confDel.lastName+"?"} onOk={()=>delM(confDel.id)} onNo={()=>setConfDel(null)}/>}
       {confDelS&&<Confirm title="Delete Speaker" msg={"Remove "+(confDelS.speaker||"this entry")+" on "+fmtDate(confDelS.date)+"?"} onOk={()=>delS(confDelS.id)} onNo={()=>setConfDelS(null)}/>}
+      {confDelU&&<Confirm title="Delete User" msg={"Remove user "+confDelU.name+"?"} onOk={()=>delU(confDelU.id)} onNo={()=>setConfDelU(null)}/>}
     </div>
   );
 }
